@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -40,6 +41,9 @@ export default function HomeScreen() {
       <Text style={styles.title}>MeetBit</Text>
       <Text style={styles.subtitle}>Find a time that works for everyone.</Text>
       <Text style={styles.status}>Server: {statusLabels[status]}</Text>
+      <Link href="/prototype/grid" style={styles.link}>
+        Grid prototype →
+      </Link>
     </View>
   );
 }
@@ -63,5 +67,11 @@ const styles = StyleSheet.create({
   status: {
     fontSize: 13,
     opacity: 0.6,
+  },
+  link: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#2563eb',
+    fontWeight: '600',
   },
 });
