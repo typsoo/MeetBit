@@ -7,10 +7,10 @@ import {
   useTapGesture,
 } from "react-native-gesture-handler";
 
-const ROW_HEIGHT = 48;
 const ROWS = 26;
 const MAX_COLUMNS = 7;
 const MIN_CELL_WIDTH = 140;
+const ROW_ASPECT = 2.5;
 
 type Point = { x: number; y: number };
 type Size = { width: number; height: number };
@@ -20,14 +20,19 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function columnsFor(width: number) {
-  return clamp(Math.floor(width / MIN_CELL_WIDTH), 1, MAX_COLUMNS);
+function cellMetrics(width: number) {
+  const columns = clamp(
+    Math.floor(width / MIN_CELL_WIDTH),
+    1,
+    MAX_COLUMNS,
+  );
+  const cellWidth = width / columns;
+
+  return { columns, cellWidth, cellHeight: cellWidth / ROW_ASPECT };
 }
 
 function cellAt(point: Point, size: Size): Cell {
-  const columns = columnsFor(size.width);
-  const cellWidth = size.width / columns;
-  const cellHeight = size.height / ROWS;
+  const { columns, cellWidth, cellHeight } = cellMetrics(size.width);
 
   return {
     column: clamp(Math.floor(point.x / cellWidth), 0, columns - 1),
@@ -134,13 +139,13 @@ export default function GridPrototypeScreen() {
   });
 
   const gestures = useExclusiveGestures(pan, tap);
-  const columns = size ? columnsFor(size.width) : 0;
+  const metrics = size ? cellMetrics(size.width) : null;
 
   return (
     <View style={styles.screen}>
       <Text style={styles.readout}>
-        {size
-          ? `${Math.round(size.width)} px · ${columns} columns`
+        {metrics
+          ? `${metrics.columns} cols · ${Math.round(metrics.cellWidth)}×${Math.round(metrics.cellHeight)}`
           : "measuring…"}
       </Text>
       <Text style={styles.readout}>
@@ -150,12 +155,21 @@ export default function GridPrototypeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <GestureDetector gesture={gestures}>
           <View
-            style={styles.grid}
+            style={[
+              styles.grid,
+              { height: metrics ? ROWS * metrics.cellHeight : 0 },
+            ]}
             onLayout={(event) => setSize(event.nativeEvent.layout)}
           >
             {Array.from({ length: ROWS }, (_, row) => (
-              <View key={row} style={styles.row}>
-                {Array.from({ length: columns }, (_, column) => (
+              <View
+                key={row}
+                style={[
+                  styles.row,
+                  { height: metrics?.cellHeight ?? 0 },
+                ]}
+              >
+                {Array.from({ length: metrics?.columns ?? 0 }, (_, column) => (
                   <View
                     key={column}
                     style={[
@@ -177,12 +191,11 @@ const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 24, paddingTop: 24, gap: 16 },
   readout: { fontSize: 16, fontVariant: ["tabular-nums"] },
   grid: {
-    height: ROWS * ROW_HEIGHT,
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#fff",
   },
-  row: { height: ROW_HEIGHT, flexDirection: "row" },
+  row: { flexDirection: "row" },
   cell: {
     flex: 1,
     borderWidth: 1,
