@@ -1,10 +1,15 @@
 import { useRef, useState } from "react";
-import { StyleSheet, Text, View, ScrollView } from "react-native";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  GestureDetector,
+  useExclusiveGestures,
+  usePanGesture,
+  useTapGesture,
+} from "react-native-gesture-handler";
 
 const ROW_HEIGHT = 48;
 const COLUMNS = 7;
-const ROWS = 8;
+const ROWS = 26;
 
 type Point = { x: number; y: number };
 type Size = { width: number; height: number };
@@ -65,9 +70,25 @@ export default function GridPrototypeScreen() {
     });
   }
 
+  function toggleCell(cell: Cell) {
+    const key = keyOf(cell);
+
+    setPainted((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
+  }
+
   const pan = usePanGesture({
     disableReanimated: true,
-    activateAfterLongPress: 100,
+    activateAfterLongPress: 300,
     onBegin: (event) => {
       if (!size) return;
 
@@ -96,14 +117,26 @@ export default function GridPrototypeScreen() {
     },
   });
 
+  const tap = useTapGesture({
+    disableReanimated: true,
+    maxDuration: 250,
+    onActivate: (event) => {
+      if (!size) return;
+
+      toggleCell(cellAt(event, size));
+    },
+  });
+
+  const gestures = useExclusiveGestures(pan, tap);
+
   return (
     <View style={styles.screen}>
       <Text style={styles.readout}>
-        {armed ? "armed — painting" : "hold to paint"}
+        {armed ? "armed — painting" : "hold to paint, tap to toggle"}
       </Text>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <GestureDetector gesture={pan}>
+        <GestureDetector gesture={gestures}>
           <View
             style={styles.grid}
             onLayout={(event) => setSize(event.nativeEvent.layout)}
