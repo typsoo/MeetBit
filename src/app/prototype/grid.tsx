@@ -66,17 +66,15 @@ export default function GridPrototypeScreen() {
 
   const pan = usePanGesture({
     disableReanimated: true,
-    activateAfterLongPress: 500,
+    activateAfterLongPress: 100,
     onBegin: (event) => {
-      if (!size) {
-        return;
-      }
+      if (!size) return;
 
       const cell = cellAt(event, size);
 
+      startCellRef.current = cell;
       modeRef.current = painted.has(keyOf(cell)) ? "erase" : "paint";
       lastKeyRef.current = null;
-      applyCell(cell);
     },
     onActivate: () => {
       const cell = startCellRef.current;
@@ -86,9 +84,7 @@ export default function GridPrototypeScreen() {
       applyCell(cell);
     },
     onUpdate: (event) => {
-      if (!size) {
-        return;
-      }
+      if (!size) return;
 
       applyCell(cellAt(event, size));
     },
