@@ -1,19 +1,19 @@
-import { Link } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Link } from "expo-router";
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import { trpc } from '@/lib/trpc';
+import { trpc } from "@/lib/trpc";
 
-type ServerStatus = 'checking' | 'ok' | 'error';
+type ServerStatus = "checking" | "ok" | "error";
 
 const statusLabels: Record<ServerStatus, string> = {
-  checking: 'checking…',
-  ok: 'ok',
-  error: 'unreachable',
+  checking: "checking…",
+  ok: "ok",
+  error: "unreachable",
 };
 
 export default function HomeScreen() {
-  const [status, setStatus] = useState<ServerStatus>('checking');
+  const [status, setStatus] = useState<ServerStatus>("checking");
 
   useEffect(() => {
     let active = true;
@@ -22,12 +22,12 @@ export default function HomeScreen() {
       .query()
       .then((result) => {
         if (active) {
-          setStatus(result.status === 'ok' ? 'ok' : 'error');
+          setStatus(result.status === "ok" ? "ok" : "error");
         }
       })
       .catch(() => {
         if (active) {
-          setStatus('error');
+          setStatus("error");
         }
       });
 
@@ -44,6 +44,12 @@ export default function HomeScreen() {
       <Link href="/prototype/grid" style={styles.link}>
         Grid prototype →
       </Link>
+      <Link href="/prototype/palette" style={styles.link}>
+        Palette & UI Kit prototype →
+      </Link>
+      <Link href="/prototype/flow" style={styles.link}>
+        Flow: Voting & Finalize (Variants A/B) →
+      </Link>
     </View>
   );
 }
@@ -51,18 +57,18 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     padding: 24,
   },
   title: {
     fontSize: 40,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   status: {
     fontSize: 13,
@@ -71,7 +77,7 @@ const styles = StyleSheet.create({
   link: {
     marginTop: 16,
     fontSize: 14,
-    color: '#2563eb',
-    fontWeight: '600',
+    color: "#2563eb",
+    fontWeight: "600",
   },
 });

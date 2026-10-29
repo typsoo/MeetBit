@@ -21,11 +21,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function cellMetrics(width: number) {
-  const columns = clamp(
-    Math.floor(width / MIN_CELL_WIDTH),
-    1,
-    MAX_COLUMNS,
-  );
+  const columns = clamp(Math.floor(width / MIN_CELL_WIDTH), 1, MAX_COLUMNS);
   const cellWidth = width / columns;
 
   return { columns, cellWidth, cellHeight: cellWidth / ROW_ASPECT };
@@ -145,7 +141,7 @@ export default function GridPrototypeScreen() {
     <View style={styles.screen}>
       <Text style={styles.readout}>
         {metrics
-          ? `${metrics.columns} cols · ${Math.round(metrics.cellWidth)}×${Math.round(metrics.cellHeight)}`
+          ? `${metrics.columns} cols · ${Math.round(metrics.cellWidth)}x${Math.round(metrics.cellHeight)}`
           : "measuring…"}
       </Text>
       <Text style={styles.readout}>
@@ -164,10 +160,7 @@ export default function GridPrototypeScreen() {
             {Array.from({ length: ROWS }, (_, row) => (
               <View
                 key={row}
-                style={[
-                  styles.row,
-                  { height: metrics?.cellHeight ?? 0 },
-                ]}
+                style={[styles.row, { height: metrics?.cellHeight ?? 0 }]}
               >
                 {Array.from({ length: metrics?.columns ?? 0 }, (_, column) => (
                   <View
