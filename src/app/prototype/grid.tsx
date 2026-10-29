@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, ScrollView } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 
+const ROW_HEIGHT = 48;
 const COLUMNS = 7;
 const ROWS = 8;
 
@@ -97,42 +98,46 @@ export default function GridPrototypeScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.readout}>painted: {painted.size}</Text>
+      <Text style={styles.readout}>
+        {armed ? "armed — painting" : "hold to paint"}
+      </Text>
 
-      <GestureDetector gesture={pan}>
-        <View
-          style={styles.grid}
-          onLayout={(event) => setSize(event.nativeEvent.layout)}
-        >
-          {Array.from({ length: ROWS }, (_, row) => (
-            <View key={row} style={styles.row}>
-              {Array.from({ length: COLUMNS }, (_, column) => (
-                <View
-                  key={column}
-                  style={[
-                    styles.cell,
-                    painted.has(keyOf({ row, column })) && styles.cellPainted,
-                  ]}
-                />
-              ))}
-            </View>
-          ))}
-        </View>
-      </GestureDetector>
+      <ScrollView contentContainerStyle={styles.content}>
+        <GestureDetector gesture={pan}>
+          <View
+            style={styles.grid}
+            onLayout={(event) => setSize(event.nativeEvent.layout)}
+          >
+            {Array.from({ length: ROWS }, (_, row) => (
+              <View key={row} style={styles.row}>
+                {Array.from({ length: COLUMNS }, (_, column) => (
+                  <View
+                    key={column}
+                    style={[
+                      styles.cell,
+                      painted.has(keyOf({ row, column })) && styles.cellPainted,
+                    ]}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        </GestureDetector>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 24, gap: 16 },
+  screen: { flex: 1, paddingHorizontal: 24, paddingTop: 24, gap: 16 },
   readout: { fontSize: 16, fontVariant: ["tabular-nums"] },
   grid: {
-    flex: 1,
+    height: ROWS * ROW_HEIGHT,
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#fff",
   },
-  row: { flex: 1, flexDirection: "row" },
+  row: { height: ROW_HEIGHT, flexDirection: "row" },
   cell: {
     flex: 1,
     borderWidth: 1,
@@ -140,4 +145,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   cellPainted: { backgroundColor: "#2563eb" },
+  content: { paddingBottom: 24 },
 });
