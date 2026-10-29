@@ -8,8 +8,9 @@ import {
 } from "react-native-gesture-handler";
 
 const ROW_HEIGHT = 48;
-const COLUMNS = 7;
 const ROWS = 26;
+const MAX_COLUMNS = 7;
+const MIN_CELL_WIDTH = 140;
 
 type Point = { x: number; y: number };
 type Size = { width: number; height: number };
@@ -19,12 +20,17 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function columnsFor(width: number) {
+  return clamp(Math.floor(width / MIN_CELL_WIDTH), 1, MAX_COLUMNS);
+}
+
 function cellAt(point: Point, size: Size): Cell {
-  const cellWidth = size.width / COLUMNS;
+  const columns = columnsFor(size.width);
+  const cellWidth = size.width / columns;
   const cellHeight = size.height / ROWS;
 
   return {
-    column: clamp(Math.floor(point.x / cellWidth), 0, COLUMNS - 1),
+    column: clamp(Math.floor(point.x / cellWidth), 0, columns - 1),
     row: clamp(Math.floor(point.y / cellHeight), 0, ROWS - 1),
   };
 }
@@ -128,9 +134,15 @@ export default function GridPrototypeScreen() {
   });
 
   const gestures = useExclusiveGestures(pan, tap);
+  const columns = size ? columnsFor(size.width) : 0;
 
   return (
     <View style={styles.screen}>
+      <Text style={styles.readout}>
+        {size
+          ? `${Math.round(size.width)} px · ${columns} columns`
+          : "measuring…"}
+      </Text>
       <Text style={styles.readout}>
         {armed ? "armed — painting" : "hold to paint, tap to toggle"}
       </Text>
@@ -143,7 +155,7 @@ export default function GridPrototypeScreen() {
           >
             {Array.from({ length: ROWS }, (_, row) => (
               <View key={row} style={styles.row}>
-                {Array.from({ length: COLUMNS }, (_, column) => (
+                {Array.from({ length: columns }, (_, column) => (
                   <View
                     key={column}
                     style={[
