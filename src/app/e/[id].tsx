@@ -1,0 +1,221 @@
+import { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+
+import { trpc } from "@/lib/trpc";
+import type { EventView } from "@/server/routers/event";
+
+type LoadState =
+  | { tag: "loading" }
+  | { tag: "ready"; event: EventView }
+  | { tag: "notFound" }
+  | { tag: "error" };
+
+const statusLabels: Record<EventView["status"], string> = {
+  open: "Open for answers",
+  approved: "Meeting scheduled",
+};
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+// Date-only strings are formatted by hand: `new Date('2026-11-05')` is parsed
+// as UTC midnight and can shift to another day in a local timezone. The grid
+// lives in the event's timezone, so ISO strings are used as-is (ADR-0002).
+function formatDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return `${day} ${MONTHS[month - 1]} ${year}`;
+}
+
+// Minutes-from-midnight, the server's working-hours format, rendered as HH:MM.
+function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+/** Reads the tRPC error code from an unknown thrown error. */
+function errorCode(error: unknown): string | null {
+  if (error && typeof error === "object" && "data" in error) {
+    return (error as { data?: { code?: string } }).data?.code ?? null;
+  }
+  return null;
+}
+
+export default function EventScreen() {
+  const params = useLocalSearchParams<{ id?: string }>();
+  const id = typeof params.id === "string" ? params.id : null;
+
+  const [state, setState] = useState<LoadState>({ tag: "loading" });
+
+  useEffect(() => {
+    if (!id) {
+      setState({ tag: "notFound" });
+      return;
+    }
+
+    let active = true;
+    setState({ tag: "loading" });
+
+    trpc.event.getByShortId
+      .query({ id })
+      .then((event) => {
+        if (active) {
+          setState({ tag: "ready", event });
+        }
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+        setState(
+          errorCode(error) === "NOT_FOUND"
+            ? { tag: "notFound" }
+            : { tag: "error" },
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (state.tag === "loading") {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.muted}>Loading the event…</Text>
+      </View>
+    );
+  }
+
+  if (state.tag === "notFound") {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.title}>Event not found</Text>
+        <Text style={styles.muted}>
+          The link is broken or the event was deleted.
+        </Text>
+      </View>
+    );
+  }
+
+  if (state.tag === "error") {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.error}>Could not load the event.</Text>
+      </View>
+    );
+  }
+
+  const { event } = state;
+
+  return (
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+      <View style={styles.card}>
+        <Text style={styles.title}>{event.name}</Text>
+        {event.description ? (
+          <Text style={styles.description}>{event.description}</Text>
+        ) : null}
+
+        <View style={styles.details}>
+          <DetailRow
+            label="Dates"
+            value={`${formatDate(event.startDate)} – ${formatDate(event.endDate)}`}
+          />
+          <DetailRow
+            label="Working hours"
+            value={`${formatMinutes(event.workStartMinutes)} – ${formatMinutes(event.workEndMinutes)}`}
+          />
+          <DetailRow label="Grid step" value={`${event.stepMinutes} min`} />
+          <DetailRow label="Timezone" value={event.timezone} />
+          <DetailRow label="Status" value={statusLabels[event.status]} />
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: "#f3f1f2",
+  },
+  container: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  centered: {
+    justifyContent: "center",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 420,
+    gap: 12,
+    padding: 28,
+    borderRadius: 16,
+    backgroundColor: "#fbf9fa",
+    borderWidth: 1,
+    borderColor: "#ded8da",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
+  },
+  description: {
+    fontSize: 16,
+    color: "#4a4448",
+  },
+  details: {
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e8e2e4",
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: "#6b6368",
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "right",
+    flexShrink: 1,
+  },
+  muted: {
+    fontSize: 14,
+    color: "#6b6368",
+  },
+  error: {
+    fontSize: 14,
+    color: "#8a2f2f",
+  },
+});

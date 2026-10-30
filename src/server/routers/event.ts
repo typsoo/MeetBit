@@ -1,10 +1,61 @@
+import { eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
 import { event } from "../db/schema";
-import { protectedProcedure, router } from "../trpc";
+import { publicProcedure, protectedProcedure, router } from "../trpc";
 
 export type EventRow = typeof event.$inferSelect;
+
+/**
+ * The event shape exposed to clients. Deliberately narrower than the table
+ * row: internal columns (owner user id) stay out of the API contract, so
+ * adding columns later cannot break clients.
+ */
+export type EventView = {
+  id: string;
+  name: string;
+  description: string | null;
+  timezone: string;
+  startDate: string;
+  endDate: string;
+  workStartMinutes: number;
+  workEndMinutes: number;
+  stepMinutes: number;
+  status: EventStatus;
+};
+
+export type EventStatus = "open" | "approved";
+
+/**
+ * The database CHECK constraint (`event_status_check`) guarantees this cast:
+ * only 'open' and 'approved' can ever be stored.
+ */
+function toEventStatus(value: string): EventStatus {
+  if (value !== "open" && value !== "approved") {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: `Unknown event status: ${value}`,
+    });
+  }
+  return value;
+}
+
+function toEventView(row: EventRow): EventView {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    timezone: row.timezone,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    workStartMinutes: row.workStartMinutes,
+    workEndMinutes: row.workEndMinutes,
+    stepMinutes: row.stepMinutes,
+    status: toEventStatus(row.status),
+  };
+}
 
 /**
  * IANA timezone names supported by the runtime's ICU data. The database
@@ -72,6 +123,29 @@ export const eventRouter = router({
         })
         .returning();
 
-      return created;
+      return toEventView(created);
+    }),
+
+  // Public on purpose: guests without an account must be able to open the
+  // short link and see the event.
+  getByShortId: publicProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.db) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database is not configured",
+        });
+      }
+
+      const [row] = await ctx.db
+        .select()
+        .from(event)
+        .where(eq(event.id, input.id));
+      if (!row) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+
+      return toEventView(row);
     }),
 });

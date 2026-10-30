@@ -127,7 +127,22 @@ describe("event.create", () => {
   });
 
   it("inserts an event owned by the session user and returns it", async () => {
-    const row = { id: "ev1234567", name: validInput.name };
+    const row = {
+      id: "ev1234567",
+      name: "RPG night",
+      description: "Board games and pizza",
+      ownerUserId: "u1",
+      timezone: "Europe/Warsaw",
+      startDate: "2026-11-05",
+      endDate: "2026-11-06",
+      workStartMinutes: 540,
+      workEndMinutes: 1080,
+      stepMinutes: 30,
+      status: "open",
+      approvedDate: null,
+      approvedSlot: null,
+      createdAt: new Date("2026-10-30T12:00:00Z"),
+    };
     const returning = vi.fn().mockResolvedValue([row]);
     const values = vi.fn().mockReturnValue({ returning });
     const insert = vi.fn().mockReturnValue({ values });
@@ -137,7 +152,18 @@ describe("event.create", () => {
     const caller = appRouter.createCaller(createContext({ db }));
     const created = await caller.event.create(validInput);
 
-    expect(created).toEqual(row);
+    expect(created).toEqual({
+      id: "ev1234567",
+      name: "RPG night",
+      description: "Board games and pizza",
+      timezone: "Europe/Warsaw",
+      startDate: "2026-11-05",
+      endDate: "2026-11-06",
+      workStartMinutes: 540,
+      workEndMinutes: 1080,
+      stepMinutes: 30,
+      status: "open",
+    });
     expect(getTableName(insert.mock.calls[0]?.[0] as never)).toBe("event");
     expect(values).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -146,5 +172,62 @@ describe("event.create", () => {
         id: expect.stringMatching(/^[\w-]{10}$/),
       }),
     );
+  });
+});
+
+describe("event.getByShortId", () => {
+  const row = {
+    id: "ev1234567",
+    name: "RPG night",
+    description: null,
+    ownerUserId: "u1",
+    timezone: "Europe/Warsaw",
+    startDate: "2026-11-05",
+    endDate: "2026-11-06",
+    workStartMinutes: 540,
+    workEndMinutes: 1080,
+    stepMinutes: 30,
+    status: "open",
+    approvedDate: null,
+    approvedSlot: null,
+    createdAt: new Date("2026-10-30T12:00:00Z"),
+  };
+
+  /** Select chain ending in an awaitable where() clause. */
+  function fakeDb(rows: unknown[]): Database {
+    return {
+      select: () => ({
+        from: () => ({
+          where: () => Promise.resolve(rows),
+        }),
+      }),
+    } as unknown as Database;
+  }
+
+  it("returns the event view for an existing short id", async () => {
+    const caller = appRouter.createCaller(createContext({ db: fakeDb([row]) }));
+
+    const found = await caller.event.getByShortId({ id: "ev1234567" });
+
+    expect(found).toEqual({
+      id: "ev1234567",
+      name: "RPG night",
+      description: null,
+      timezone: "Europe/Warsaw",
+      startDate: "2026-11-05",
+      endDate: "2026-11-06",
+      workStartMinutes: 540,
+      workEndMinutes: 1080,
+      stepMinutes: 30,
+      status: "open",
+    });
+  });
+
+  it("throws NOT_FOUND for an unknown short id", async () => {
+    const caller = appRouter.createCaller(createContext({ db: fakeDb([]) }));
+
+    await expect(
+      caller.event.getByShortId({ id: "ev1234567" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
