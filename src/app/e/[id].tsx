@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
+import { authClient } from "@/lib/auth-client";
+import { loadGuest, saveGuest, type GuestIdentity } from "@/lib/guest";
 import { trpc } from "@/lib/trpc";
 import type { EventView } from "@/server/routers/event";
 
@@ -59,6 +61,29 @@ export default function EventScreen() {
   const id = typeof params.id === "string" ? params.id : null;
 
   const [state, setState] = useState<LoadState>({ tag: "loading" });
+
+  // The join form only makes sense for visitors without an account. Waiting
+  // for the session check avoids flashing the form at a signed-in user.
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const [guest, setGuest] = useState<GuestIdentity | null>(() => loadGuest());
+  // A returning guest gets their stored name prefilled but can still change
+  // it for a new event. The identifier stays the same either way.
+  const [nickInput, setNickInput] = useState(guest?.name ?? "");
+  const [nickError, setNickError] = useState<string | null>(null);
+
+  function handleJoin() {
+    const name = nickInput.trim();
+    if (!name) {
+      setNickError("Name is required");
+      return;
+    }
+    if (name.length > 50) {
+      setNickError("Keep the name under 50 characters");
+      return;
+    }
+    setNickError(null);
+    setGuest(saveGuest(name));
+  }
 
   useEffect(() => {
     if (!id) {
@@ -142,6 +167,41 @@ export default function EventScreen() {
           <DetailRow label="Timezone" value={event.timezone} />
           <DetailRow label="Status" value={statusLabels[event.status]} />
         </View>
+
+        {session || sessionPending ? null : (
+          <View style={styles.joining}>
+            <Text style={styles.joiningText}>
+              Answer without an account: pick a name your group recognizes.
+            </Text>
+            <TextInput
+              style={styles.nickInput}
+              value={nickInput}
+              onChangeText={(value) => {
+                setNickInput(value);
+                setNickError(null);
+              }}
+              placeholder="Your name"
+              maxLength={50}
+            />
+            {nickError ? <Text style={styles.error}>{nickError}</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleJoin}
+              style={({ pressed }) => [
+                styles.joinButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.joinButtonText}>Join as a guest</Text>
+            </Pressable>
+            {guest ? (
+              <Text style={styles.joiningText}>
+                You are joining as{" "}
+                <Text style={styles.joiningName}>{guest.name}</Text>.
+              </Text>
+            ) : null}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -209,6 +269,44 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "right",
     flexShrink: 1,
+  },
+  joining: {
+    gap: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e8e2e4",
+  },
+  joiningText: {
+    fontSize: 14,
+    color: "#6b6368",
+  },
+  joiningName: {
+    fontWeight: "700",
+    color: "#23644f",
+  },
+  nickInput: {
+    borderWidth: 1,
+    borderColor: "#ded8da",
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  joinButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#23644f",
+  },
+  joinButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  pressed: {
+    opacity: 0.8,
   },
   muted: {
     fontSize: 14,
