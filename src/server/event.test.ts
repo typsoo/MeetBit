@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createContext } from "./context";
 import type { Database } from "./db";
-import { eventCreateInput, type EventCreateInput } from "./routers/event";
+import { eventCreateInput, type EventCreateInput } from "../lib/event-schema";
 import { appRouter } from "./routers/_app";
 
 // The procedure receives raw JSON over the wire, so the narrowed `30 | 60`

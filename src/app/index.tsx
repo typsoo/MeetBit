@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { authClient } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
@@ -20,6 +21,7 @@ const devAccount = {
 };
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [status, setStatus] = useState<ServerStatus>('checking');
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,6 +112,16 @@ export default function HomeScreen() {
             <>
               <Text style={styles.signedIn}>Signed in as {session.user.name}</Text>
               <Text style={styles.muted}>{session.user.email}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/create')}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.primaryButtonText}>Create event</Text>
+              </Pressable>
               <Pressable
                 accessibilityRole="button"
                 disabled={isSubmitting}
