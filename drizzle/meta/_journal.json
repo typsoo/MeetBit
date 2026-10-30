@@ -8,6 +8,13 @@
       "when": 1793359156169,
       "tag": "0000_low_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793384359256,
+      "tag": "0001_aberrant_warpath",
+      "breakpoints": true
     }
   ]
 }
