@@ -12,6 +12,13 @@ const statusLabels: Record<ServerStatus, string> = {
   error: 'unreachable',
 };
 
+/** Credentials of the development account, created on first use. */
+const devAccount = {
+  email: 'dev@meetbit.local',
+  password: 'meetbit-dev-password',
+  name: 'Dev User',
+};
+
 export default function HomeScreen() {
   const [status, setStatus] = useState<ServerStatus>('checking');
   const [actionError, setActionError] = useState<string | null>(null);
@@ -66,6 +73,30 @@ export default function HomeScreen() {
     setIsSubmitting(false);
   }
 
+  /**
+   * Development-only shortcut: a fixed password account instead of Google, so
+   * the app can be exercised on a phone without a public tunnel and without
+   * registering an OAuth callback.
+   */
+  async function handleDevSignIn() {
+    setActionError(null);
+    setIsSubmitting(true);
+
+    const signUp = await authClient.signUp.email(devAccount);
+    if (signUp.error) {
+      const signIn = await authClient.signIn.email({
+        email: devAccount.email,
+        password: devAccount.password,
+      });
+      if (signIn.error) {
+        setActionError(
+          signIn.error.message ?? 'Could not sign in as the dev user',
+        );
+      }
+    }
+    setIsSubmitting(false);
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -109,6 +140,23 @@ export default function HomeScreen() {
                   {isSubmitting ? 'Opening Google…' : 'Sign in with Google'}
                 </Text>
               </Pressable>
+
+              {__DEV__ ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isSubmitting}
+                  onPress={handleDevSignIn}
+                  style={({ pressed }) => [
+                    styles.devButton,
+                    pressed && styles.pressed,
+                    isSubmitting && styles.disabled,
+                  ]}
+                >
+                  <Text style={styles.devButtonText}>
+                    Dev sign in (no Google)
+                  </Text>
+                </Pressable>
+              ) : null}
             </>
           )}
 
@@ -188,6 +236,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#23644f',
+  },
+  devButton: {
+    marginTop: 4,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ded8da',
+    borderStyle: 'dashed',
+  },
+  devButtonText: {
+    fontSize: 13,
+    color: '#6b6368',
   },
   pressed: {
     opacity: 0.8,

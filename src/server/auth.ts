@@ -40,6 +40,9 @@ export function createAuth(db: Database) {
     account: {
       storeStateStrategy: "cookie",
     },
+    // A password account exists only in development, so a phone can sign in
+    // without Google. The web flow keeps using Google in every environment.
+    ...(isDevelopment ? { emailAndPassword: { enabled: true } } : {}),
     socialProviders: {
       google: {
         clientId: requiredEnv("GOOGLE_CLIENT_ID"),
