@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 
 import { authClient } from "@/lib/auth-client";
 import { loadGuest, saveGuest, type GuestIdentity } from "@/lib/guest";
-import { trpc } from "@/lib/trpc";
+import { useTRPC } from "@/lib/trpc";
 import type { EventView } from "@/server/routers/event";
 
 type LoadState =
@@ -60,7 +61,22 @@ export default function EventScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === "string" ? params.id : null;
 
-  const [state, setState] = useState<LoadState>({ tag: "loading" });
+  const trpc = useTRPC();
+  // '' is a placeholder: with enabled=false the query never fires, so the
+  // input shape stays valid even while the id is still unknown.
+  const eventQuery = useQuery(
+    trpc.event.getByShortId.queryOptions({ id: id ?? "" }, { enabled: id !== null }),
+  );
+
+  const state: LoadState = !id
+    ? { tag: "notFound" }
+    : eventQuery.error
+      ? errorCode(eventQuery.error) === "NOT_FOUND"
+        ? { tag: "notFound" }
+        : { tag: "error" }
+      : eventQuery.data
+        ? { tag: "ready", event: eventQuery.data }
+        : { tag: "loading" };
 
   // The join form only makes sense for visitors without an account. Waiting
   // for the session check avoids flashing the form at a signed-in user.
@@ -84,38 +100,6 @@ export default function EventScreen() {
     setNickError(null);
     setGuest(saveGuest(name));
   }
-
-  useEffect(() => {
-    if (!id) {
-      setState({ tag: "notFound" });
-      return;
-    }
-
-    let active = true;
-    setState({ tag: "loading" });
-
-    trpc.event.getByShortId
-      .query({ id })
-      .then((event) => {
-        if (active) {
-          setState({ tag: "ready", event });
-        }
-      })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-        setState(
-          errorCode(error) === "NOT_FOUND"
-            ? { tag: "notFound" }
-            : { tag: "error" },
-        );
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [id]);
 
   if (state.tag === "loading") {
     return (

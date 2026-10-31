@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 
 import { authClient } from '@/lib/auth-client';
-import { trpc } from '@/lib/trpc';
+import { useTRPC } from '@/lib/trpc';
 
 type ServerStatus = 'checking' | 'ok' | 'error';
 
@@ -22,32 +23,24 @@ const devAccount = {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [status, setStatus] = useState<ServerStatus>('checking');
+  const trpc = useTRPC();
+  const statusQuery = useQuery(
+    // A health check: once fresh, there is no reason to re-ping the server
+    // on every window focus.
+    trpc.system.status.queryOptions(undefined, { staleTime: 30_000 }),
+  );
+  const status: ServerStatus = statusQuery.isPending
+    ? 'checking'
+    : statusQuery.error
+      ? 'error'
+      : statusQuery.data?.status === 'ok'
+        ? 'ok'
+        : 'error';
+
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: session, isPending } = authClient.useSession();
-
-  useEffect(() => {
-    let active = true;
-
-    trpc.system.status
-      .query()
-      .then((result) => {
-        if (active) {
-          setStatus(result.status === 'ok' ? 'ok' : 'error');
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setStatus('error');
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   async function handleSignIn() {
     setActionError(null);

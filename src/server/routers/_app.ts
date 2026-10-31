@@ -1,10 +1,10 @@
-import { publicProcedure, router } from '../trpc';
+import { publicProcedure, router } from "../trpc";
 
-import { eventRouter } from './event';
+import { eventRouter } from "./event";
 
 export const appRouter = router({
   system: router({
-    status: publicProcedure.query(() => ({ status: 'ok' as const })),
+    status: publicProcedure.query(() => ({ status: "ok" as const })),
   }),
   event: eventRouter,
 });

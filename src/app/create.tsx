@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { z } from 'zod';
 
 import { eventCreateInput, type EventCreateInput } from '@/lib/event-schema';
-import { trpc } from '@/lib/trpc';
+import { useTRPC } from '@/lib/trpc';
 
 type FieldKey = keyof EventCreateInput;
 type FieldErrors = Partial<Record<FieldKey, string>>;
@@ -58,11 +59,17 @@ export default function CreateEventScreen() {
   const [stepMinutes, setStepMinutes] = useState<EventCreateInput['stepMinutes']>(30);
   const [timezone, setTimezone] = useState(guessTimezone);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit() {
-    setSubmitError(null);
+  const trpc = useTRPC();
+  const createEvent = useMutation(
+    trpc.event.create.mutationOptions({
+      onSuccess: (created) => {
+        router.push(`/e/${created.id}`);
+      },
+    }),
+  );
+
+  function handleSubmit() {
 
     // HH:MM strings are a form-only concern: the schema speaks minutes.
     const workStartMinutes = parseTimeToMinutes(workStart);
@@ -96,17 +103,8 @@ export default function CreateEventScreen() {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const created = await trpc.event.create.mutate(parsed.data);
-      router.push(`/e/${created.id}`);
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : 'Could not create the event',
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Validation errors stay local: only a parsed payload reaches the server.
+    createEvent.mutate(parsed.data);
   }
 
   return (
@@ -216,20 +214,22 @@ export default function CreateEventScreen() {
 
         <Pressable
           accessibilityRole="button"
-          disabled={isSubmitting}
+          disabled={createEvent.isPending}
           onPress={handleSubmit}
           style={({ pressed }) => [
             styles.submitButton,
             pressed && styles.pressed,
-            isSubmitting && styles.disabled,
+            createEvent.isPending && styles.disabled,
           ]}
         >
           <Text style={styles.submitButtonText}>
-            {isSubmitting ? 'Creating…' : 'Create event'}
+            {createEvent.isPending ? 'Creating…' : 'Create event'}
           </Text>
         </Pressable>
 
-        {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
+        {createEvent.error ? (
+          <Text style={styles.error}>{createEvent.error.message}</Text>
+        ) : null}
       </View>
     </View>
   );
