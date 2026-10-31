@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 
 import { authClient } from '@/lib/auth-client';
@@ -24,6 +24,7 @@ const devAccount = {
 export default function HomeScreen() {
   const router = useRouter();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const statusQuery = useQuery(
     // A health check: once fresh, there is no reason to re-ping the server
     // on every window focus.
@@ -64,6 +65,9 @@ export default function HomeScreen() {
     const { error } = await authClient.signOut();
     if (error) {
       setActionError(error.message ?? 'Could not sign out');
+    } else {
+      // Cached data belonged to the signed-in user, so it must not outlive them.
+      queryClient.clear();
     }
     setIsSubmitting(false);
   }
