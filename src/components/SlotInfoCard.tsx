@@ -13,6 +13,10 @@ type Props = {
  * aggregate.heatmap on the real event page).
  */
 export function SlotInfoCard({ title, free, busy, onClose }: Props) {
+  // Until aggregate.heatmap lands (ticket 11) the caller passes empty lists:
+  // the card still opens, but counts and names are dashes.
+  const hasData = free.length + busy.length > 0;
+
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
@@ -27,40 +31,32 @@ export function SlotInfoCard({ title, free, busy, onClose }: Props) {
           <View className="gap-1">
             <Text className="text-title text-ink">{title}</Text>
             <Text className="text-label text-ink-muted">
-              {free.length + busy.length} people answered
+              {hasData ? `${free.length + busy.length} people answered` : "—"}
             </Text>
           </View>
 
           <View className="gap-2">
             <Text className="text-label font-semibold text-ink">
-              Free ({free.length})
+              Free ({hasData ? free.length : "—"})
             </Text>
-            {free.length === 0 ? (
-              <Text className="text-body text-ink-faint">Nobody is free</Text>
-            ) : (
-              free.map((name) => (
-                <View key={name} className="flex-row items-center gap-2">
-                  <View className="h-2 w-2 rounded-pill bg-success" />
-                  <Text className="text-body text-ink">{name}</Text>
-                </View>
-              ))
-            )}
+            <NameList
+              names={free}
+              hasData={hasData}
+              emptyText="Nobody is free"
+              dotClass="bg-success"
+            />
           </View>
 
           <View className="gap-2">
             <Text className="text-label font-semibold text-ink">
-              Busy ({busy.length})
+              Busy ({hasData ? busy.length : "—"})
             </Text>
-            {busy.length === 0 ? (
-              <Text className="text-body text-ink-faint">Nobody is busy</Text>
-            ) : (
-              busy.map((name) => (
-                <View key={name} className="flex-row items-center gap-2">
-                  <View className="h-2 w-2 rounded-pill bg-busy" />
-                  <Text className="text-body text-ink">{name}</Text>
-                </View>
-              ))
-            )}
+            <NameList
+              names={busy}
+              hasData={hasData}
+              emptyText="Nobody is busy"
+              dotClass="bg-busy"
+            />
           </View>
 
           <Pressable
@@ -73,4 +69,31 @@ export function SlotInfoCard({ title, free, busy, onClose }: Props) {
       </Pressable>
     </Modal>
   );
+}
+
+function NameList({
+  names,
+  hasData,
+  emptyText,
+  dotClass,
+}: {
+  names: string[];
+  hasData: boolean;
+  emptyText: string;
+  dotClass: string;
+}) {
+  if (!hasData) {
+    return <Text className="text-body text-ink-faint">—</Text>;
+  }
+
+  if (names.length === 0) {
+    return <Text className="text-body text-ink-faint">{emptyText}</Text>;
+  }
+
+  return names.map((name) => (
+    <View key={name} className="flex-row items-center gap-2">
+      <View className={`h-2 w-2 rounded-pill ${dotClass}`} />
+      <Text className="text-body text-ink">{name}</Text>
+    </View>
+  ));
 }

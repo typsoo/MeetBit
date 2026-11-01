@@ -14,9 +14,15 @@ import {
 } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 
-import { AvailabilityGrid } from "@/components/AvailabilityGrid";
+import { AvailabilityGrid, type Cell } from "@/components/grid";
+import { SlotInfoCard } from "@/components/SlotInfoCard";
 import { authClient } from "@/lib/auth-client";
-import { formatDate, formatMinutes, isoDaysBetween } from "@/lib/format";
+import {
+  formatDate,
+  formatDayHeader,
+  formatMinutes,
+  isoDaysBetween,
+} from "@/lib/format";
 import { loadGuest, saveGuest, type GuestIdentity } from "@/lib/guest";
 import { useTRPC } from "@/lib/trpc";
 import type { EventView } from "@/server/routers/event";
@@ -74,6 +80,9 @@ export default function EventScreen() {
   const [nickError, setNickError] = useState<string | null>(null);
   // Busy cells keyed "YYYY-MM-DD:slotNumber", local until saved (ticket 06).
   const [busy, setBusy] = useState<Set<string>>(() => new Set());
+  // Slot whose details card is open. The lists are empty until ticket 11
+  // supplies aggregate.heatmap; the card shows dashes in the meantime.
+  const [selectedSlot, setSelectedSlot] = useState<Cell | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -260,7 +269,18 @@ export default function EventScreen() {
           stepMinutes={event.stepMinutes}
           busy={busy}
           onChange={setBusy}
+          onSelectSlot={setSelectedSlot}
         />
+        {selectedSlot ? (
+          <SlotInfoCard
+            title={`${formatDayHeader(selectedSlot.date)} · ${formatMinutes(
+              event.workStartMinutes + selectedSlot.slot * event.stepMinutes,
+            )}`}
+            free={[]}
+            busy={[]}
+            onClose={() => setSelectedSlot(null)}
+          />
+        ) : null}
         <View style={styles.saveRow}>
           {session ? (
             <Text style={styles.muted}>
