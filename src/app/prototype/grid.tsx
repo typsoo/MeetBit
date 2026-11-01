@@ -179,7 +179,8 @@ const GridCell = memo(function GridCell({
 
   return (
     <View
-      className={`relative flex-1 items-center justify-center overflow-hidden border ${classes.bg} ${classes.text} ${classes.border}`}
+      className={`relative items-center justify-center overflow-hidden border ${classes.bg} ${classes.text} ${classes.border}`}
+      style={{ width: cellWidth }}
     >
       {/* The number hides under the hatch: there is no
           one left to count there. */}
