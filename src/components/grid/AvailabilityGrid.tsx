@@ -76,7 +76,9 @@ export function AvailabilityGrid({
 
   return (
     <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      {/* Wide grids scroll sideways; the styled bar keeps that discoverable
+          for a mouse, which has no swipe. */}
+      <ScrollView horizontal className="grid-scroll">
         <View>
           <GridHeader
             days={days}
