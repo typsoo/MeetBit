@@ -3,9 +3,9 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getAuth } from "../auth";
-import type { Context } from "../context";
+import { loadEvent, requireDatabase } from "../db-helpers";
 import type { Database } from "../db";
-import { availability, event, participant } from "../db/schema";
+import { availability, participant } from "../db/schema";
 import { publicProcedure, router } from "../trpc";
 import type { EventRow } from "./event";
 
@@ -44,24 +44,6 @@ export const availabilitySaveInput = availabilityTarget.extend({
 type Identity =
   | { kind: "guest"; guestId: string; name: string }
   | { kind: "user"; userId: string; name: string };
-
-function requireDatabase(ctx: Context): Database {
-  if (!ctx.db) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Database is not configured",
-    });
-  }
-  return ctx.db;
-}
-
-async function loadEvent(db: Database, eventId: string): Promise<EventRow> {
-  const [row] = await db.select().from(event).where(eq(event.id, eventId));
-  if (!row) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
-  }
-  return row;
-}
 
 /**
  * A session account takes precedence; otherwise the browser-supplied guest
