@@ -6,7 +6,7 @@ import {
   useTapGesture,
 } from "react-native-gesture-handler";
 
-import { useGridPan } from "./gestures/useGridPan";
+import { useGridPan } from "./hooks/useGridPan";
 import { MIN_CELL_WIDTH } from "./model/constants";
 import { cellAt, cellMetrics } from "./model/geometry";
 import type { Cell } from "./model/types";

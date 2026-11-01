@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatClockTime,
   formatDate,
   formatDayHeader,
   formatMinutes,
@@ -55,5 +56,13 @@ describe("isoDaysBetween", () => {
       "2026-03-29",
       "2026-03-30",
     ]);
+  });
+});
+
+describe("formatClockTime", () => {
+  it("renders the local time of a timestamp as HH:MM", () => {
+    const timestamp = new Date(2026, 10, 5, 16, 42).toISOString();
+
+    expect(formatClockTime(timestamp)).toBe("16:42");
   });
 });
