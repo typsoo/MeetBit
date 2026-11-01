@@ -6,7 +6,10 @@ import {
   boolean,
   integer,
   date,
+  uuid,
   index,
+  uniqueIndex,
+  primaryKey,
   check,
 } from "drizzle-orm/pg-core";
 
@@ -124,6 +127,7 @@ export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
   events: many(event),
+  participations: many(participant),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -140,9 +144,85 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const eventRelations = relations(event, ({ one }) => ({
+export const eventRelations = relations(event, ({ one, many }) => ({
   owner: one(user, {
     fields: [event.ownerUserId],
     references: [user.id],
+  }),
+  participants: many(participant),
+}));
+
+/**
+ * A person who answered an event at least once. The row appears only on the
+ * first save, and the name is frozen here afterwards: that is what keeps a
+ * guest from silently changing identity mid-event.
+ */
+export const participant = pgTable(
+  "participant",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "cascade" }),
+    guestId: text("guest_id"),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    savedAt: timestamp("saved_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("participant_eventId_idx").on(table.eventId),
+    index("participant_userId_idx").on(table.userId),
+    // One identity kind per event; the WHERE clauses keep the two kinds from
+    // fighting over NULLs.
+    uniqueIndex("participant_event_guest_unique")
+      .on(table.eventId, table.guestId)
+      .where(sql`${table.guestId} is not null`),
+    uniqueIndex("participant_event_user_unique")
+      .on(table.eventId, table.userId)
+      .where(sql`${table.userId} is not null`),
+    // Exactly one of guest_id / user_id must be filled.
+    check(
+      "participant_identity_check",
+      sql`(${table.guestId} is not null) <> (${table.userId} is not null)`,
+    ),
+  ],
+);
+
+/**
+ * Busy slots only, per ADR-0004 (an empty cell means free). The composite
+ * primary key makes a duplicate mark physically impossible.
+ */
+export const availability = pgTable(
+  "availability",
+  {
+    participantId: uuid("participant_id")
+      .notNull()
+      .references(() => participant.id, { onDelete: "cascade" }),
+    date: date("date", { mode: "string" }).notNull(),
+    slotNumber: integer("slot_number").notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.participantId, table.date, table.slotNumber],
+    }),
+  ],
+);
+
+export const participantRelations = relations(participant, ({ one, many }) => ({
+  event: one(event, {
+    fields: [participant.eventId],
+    references: [event.id],
+  }),
+  user: one(user, {
+    fields: [participant.userId],
+    references: [user.id],
+  }),
+  slots: many(availability),
+}));
+
+export const availabilityRelations = relations(availability, ({ one }) => ({
+  participant: one(participant, {
+    fields: [availability.participantId],
+    references: [participant.id],
   }),
 }));
