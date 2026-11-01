@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* The grid scrolls sideways on narrow screens. Web overlay scrollbars stay
+   invisible until the user scrolls, and a mouse user has no gesture for that
+   — so the thumb is styled into an always-visible bar. */
+.grid-scroll {
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 38, 32, 0.28) transparent;
+}
+
+.grid-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.grid-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.grid-scroll::-webkit-scrollbar-thumb {
+  background: rgba(22, 38, 32, 0.28);
+  border-radius: 999px;
+}
+
+.grid-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 38, 32, 0.45);
+}
