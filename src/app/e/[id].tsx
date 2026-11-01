@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -7,9 +7,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 
+import { AvailabilityGrid } from "@/components/AvailabilityGrid";
 import { authClient } from "@/lib/auth-client";
 import { formatDate, formatMinutes, isoDaysBetween } from "@/lib/format";
 import { loadGuest, saveGuest, type GuestIdentity } from "@/lib/guest";
@@ -70,6 +75,43 @@ export default function EventScreen() {
   // Busy cells keyed "YYYY-MM-DD:slotNumber", local until saved (ticket 06).
   const [busy, setBusy] = useState<Set<string>>(() => new Set());
 
+  const queryClient = useQueryClient();
+
+  const guestForApi = guest ? { id: guest.id, name: guest.name } : undefined;
+  const hasIdentity = !sessionPending && (session !== null || guest !== null);
+
+  // The saved grid hydrates the local one once; later refetches must not
+  // wipe unsaved marks.
+  const availabilityQuery = useQuery(
+    trpc.availability.get.queryOptions(
+      { eventId: id ?? "", guest: guestForApi },
+      { enabled: id !== null && hasIdentity },
+    ),
+  );
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    const saved = availabilityQuery.data;
+    if (hydratedRef.current || !saved) {
+      return;
+    }
+    hydratedRef.current = true;
+    setBusy(
+      new Set(saved.busySlots.map((slot) => `${slot.date}:${slot.slotNumber}`)),
+    );
+  }, [availabilityQuery.data]);
+
+  const saveAvailability = useMutation({
+    ...trpc.availability.save.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: trpc.availability.get.queryKey({
+          eventId: id ?? "",
+          guest: guestForApi,
+        }),
+      });
+    },
+  });
+
   function handleJoin() {
     const name = nickInput.trim();
     if (!name) {
@@ -82,6 +124,27 @@ export default function EventScreen() {
     }
     setNickError(null);
     setGuest(saveGuest(name));
+  }
+
+  function handleSave() {
+    if (state.tag !== "ready") {
+      return;
+    }
+
+    const busySlots = Array.from(busy, (key) => {
+      const [date, slot] = key.split(":");
+      return { date, slotNumber: Number(slot) };
+    });
+
+    saveAvailability.mutate({
+      eventId: state.event.id,
+      guest: session
+        ? undefined
+        : guest
+          ? { id: guest.id, name: guest.name }
+          : undefined,
+      busySlots,
+    });
   }
 
   if (state.tag === "loading") {
@@ -138,7 +201,17 @@ export default function EventScreen() {
           <DetailRow label="Status" value={statusLabels[event.status]} />
         </View>
 
-        {session || sessionPending ? null : (
+        {session || sessionPending ? null : availabilityQuery.data ? (
+          <View style={styles.joining}>
+            <Text style={styles.joiningText}>
+              You are answering as{" "}
+              <Text style={styles.joiningName}>
+                {availabilityQuery.data.name}
+              </Text>
+              . Your name is locked for this event.
+            </Text>
+          </View>
+        ) : (
           <View style={styles.joining}>
             <Text style={styles.joiningText}>
               Answer without an account: pick a name your group recognizes.
@@ -177,9 +250,48 @@ export default function EventScreen() {
       <View style={styles.gridCard}>
         <Text style={styles.gridTitle}>When are you busy?</Text>
         <Text style={styles.muted}>
-          Drag across cells to mark busy times; drag over marked cells to clear
-          them.
+          Hold and drag across cells to mark busy times; drag over marked cells
+          to clear them. Saving replaces your whole previous grid.
         </Text>
+        <AvailabilityGrid
+          days={days}
+          slotsPerDay={slotsPerDay}
+          workStartMinutes={event.workStartMinutes}
+          stepMinutes={event.stepMinutes}
+          busy={busy}
+          onChange={setBusy}
+        />
+        <View style={styles.saveRow}>
+          {session ? (
+            <Text style={styles.muted}>
+              You will answer as {session.user.name}.
+            </Text>
+          ) : !guest ? (
+            <Text style={styles.muted}>
+              Join with a name above to save your grid.
+            </Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            disabled={
+              saveAvailability.isPending || (!session && !guest)
+            }
+            onPress={handleSave}
+            style={({ pressed }) => [
+              styles.saveButton,
+              pressed && styles.pressed,
+              (saveAvailability.isPending || (!session && !guest)) &&
+                styles.disabled,
+            ]}
+          >
+            <Text style={styles.saveButtonText}>
+              {saveAvailability.isPending ? "Saving…" : "Save my availability"}
+            </Text>
+          </Pressable>
+          {saveAvailability.error ? (
+            <Text style={styles.error}>{saveAvailability.error.message}</Text>
+          ) : null}
+        </View>
       </View>
     </ScrollView>
   );
@@ -268,6 +380,27 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: "#e8e2e4",
+  },
+  saveRow: {
+    gap: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e8e2e4",
+  },
+  saveButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#23644f",
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  disabled: {
+    opacity: 0.55,
   },
   joiningText: {
     fontSize: 14,
