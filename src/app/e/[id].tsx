@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 
 import { authClient } from "@/lib/auth-client";
+import { formatDate, formatMinutes, isoDaysBetween } from "@/lib/format";
 import { loadGuest, saveGuest, type GuestIdentity } from "@/lib/guest";
 import { useTRPC } from "@/lib/trpc";
 import type { EventView } from "@/server/routers/event";
@@ -18,36 +26,6 @@ const statusLabels: Record<EventView["status"], string> = {
   open: "Open for answers",
   approved: "Meeting scheduled",
 };
-
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-// Date-only strings are formatted by hand: `new Date('2026-11-05')` is parsed
-// as UTC midnight and can shift to another day in a local timezone. The grid
-// lives in the event's timezone, so ISO strings are used as-is (ADR-0002).
-function formatDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  return `${day} ${MONTHS[month - 1]} ${year}`;
-}
-
-// Minutes-from-midnight, the server's working-hours format, rendered as HH:MM.
-function formatMinutes(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
-}
 
 /** Reads the tRPC error code from an unknown thrown error. */
 function errorCode(error: unknown): string | null {
@@ -65,7 +43,10 @@ export default function EventScreen() {
   // '' is a placeholder: with enabled=false the query never fires, so the
   // input shape stays valid even while the id is still unknown.
   const eventQuery = useQuery(
-    trpc.event.getByShortId.queryOptions({ id: id ?? "" }, { enabled: id !== null }),
+    trpc.event.getByShortId.queryOptions(
+      { id: id ?? "" },
+      { enabled: id !== null },
+    ),
   );
 
   const state: LoadState = !id
@@ -86,6 +67,8 @@ export default function EventScreen() {
   // it for a new event. The identifier stays the same either way.
   const [nickInput, setNickInput] = useState(guest?.name ?? "");
   const [nickError, setNickError] = useState<string | null>(null);
+  // Busy cells keyed "YYYY-MM-DD:slotNumber", local until saved (ticket 06).
+  const [busy, setBusy] = useState<Set<string>>(() => new Set());
 
   function handleJoin() {
     const name = nickInput.trim();
@@ -129,6 +112,9 @@ export default function EventScreen() {
   }
 
   const { event } = state;
+  const days = isoDaysBetween(event.startDate, event.endDate);
+  const slotsPerDay =
+    (event.workEndMinutes - event.workStartMinutes) / event.stepMinutes;
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
@@ -187,6 +173,14 @@ export default function EventScreen() {
           </View>
         )}
       </View>
+
+      <View style={styles.gridCard}>
+        <Text style={styles.gridTitle}>When are you busy?</Text>
+        <Text style={styles.muted}>
+          Drag across cells to mark busy times; drag over marked cells to clear
+          them.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -209,6 +203,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 16,
     padding: 24,
   },
   centered: {
@@ -223,6 +218,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#fbf9fa",
     borderWidth: 1,
     borderColor: "#ded8da",
+  },
+  gridCard: {
+    width: "100%",
+    maxWidth: 900,
+    gap: 8,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: "#fbf9fa",
+    borderWidth: 1,
+    borderColor: "#ded8da",
+  },
+  gridTitle: {
+    fontSize: 18,
+    fontWeight: "600",
   },
   title: {
     fontSize: 28,
