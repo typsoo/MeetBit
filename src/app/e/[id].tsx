@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from "expo-router";
 
 import { ClientOnly } from "@/components/ClientOnly";
-import { EventScreen, ScreenMessage } from "@/components/event";
+import { EventScreen } from "@/components/event";
+import { ScreenMessage } from "@/components/ui/ScreenMessage";
 
 /** Shown on the server and during the first client render. */
 function EventRouteSkeleton() {

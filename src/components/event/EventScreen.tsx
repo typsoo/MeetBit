@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 
 import { EventContent } from "./EventContent";
-import { QueryBoundary } from "./ui/QueryBoundary";
-import { ScreenMessage } from "./ui/ScreenMessage";
+import { QueryBoundary } from "@/components/ui/QueryBoundary";
+import { ScreenMessage } from "@/components/ui/ScreenMessage";
 
 /**
  * The route entry: no loading or error branches in the screen itself. The
