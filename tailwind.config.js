@@ -69,6 +69,13 @@ module.exports = {
         busy: { DEFAULT: "#FFC5AA", ink: "#8A3928" },
         // Slots blocked by the USOS import, not by the person.
         imported: { DEFAULT: "#E8EAE6", ink: "#55645C" },
+        // Cell outlines per ramp step (palette.html): the border darkens with
+        // the fill so cells stay readable when they sit side by side.
+        "cell-line-busy": "#DFAF97",
+        "cell-line-1": "#A5D5BA",
+        "cell-line-2": "#7FC7A3",
+        "cell-line-3": "#56B189",
+        "cell-line-4": "#569A80",
 
         // Status dots in participant lists.
         success: "#205E46",
