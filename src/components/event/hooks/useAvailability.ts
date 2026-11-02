@@ -36,7 +36,10 @@ export type AvailabilityState = {
  * The component using this hook must be mounted only when the identity is
  * known: the query is not conditionally enabled.
  */
-export function useAvailability({ eventId, viewer }: Options): AvailabilityState {
+export function useAvailability({
+  eventId,
+  viewer,
+}: Options): AvailabilityState {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -58,11 +61,16 @@ export function useAvailability({ eventId, viewer }: Options): AvailabilityState
   const mutation = useMutation({
     ...trpc.availability.save.mutationOptions(),
     onSuccess: () => {
+      // Both views of the same data: the participant's own grid and the
+      // aggregate that colors it. One save invalidates them together.
       queryClient.invalidateQueries({
         queryKey: trpc.availability.get.queryKey({
           eventId,
           guest: guestParam,
         }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: trpc.aggregate.heatmap.queryKey({ eventId }),
       });
     },
   });

@@ -4,6 +4,7 @@ import type { EventView } from "@/server/routers/event";
 
 import type { Viewer } from "./model/viewer";
 import { useAvailability } from "./hooks/useAvailability";
+import { useHeatmap } from "./hooks/useHeatmap";
 import { AvailabilityPanel } from "./ui/AvailabilityPanel";
 import { GuestNameForm } from "./ui/GuestNameForm";
 import { SavedNameNotice } from "./ui/SavedNameNotice";
@@ -38,6 +39,8 @@ function GuestNameArea({
  */
 export function AvailabilitySection({ event, viewer, onJoin }: Props) {
   const availability = useAvailability({ eventId: event.id, viewer });
+  // Same card as the grid: the cells color themselves with the aggregate.
+  const heatmap = useHeatmap(event.id);
 
   const days = isoDaysBetween(event.startDate, event.endDate);
   const slotsPerDay =
@@ -57,6 +60,7 @@ export function AvailabilitySection({ event, viewer, onJoin }: Props) {
         days={days}
         slotsPerDay={slotsPerDay}
         availability={availability}
+        heatmap={heatmap}
       />
     </>
   );

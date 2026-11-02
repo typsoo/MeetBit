@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { AvailabilityGrid, type Cell } from "@/components/grid";
+import {
+  AvailabilityGrid,
+  slotAt,
+  slotIndex,
+  type Cell,
+} from "@/components/grid";
 import { SlotInfoCard } from "@/components/SlotInfoCard";
 import { formatClockTime, formatDayHeader, formatMinutes } from "@/lib/format";
+import type { Heatmap } from "@/server/aggregate";
 import type { EventView } from "@/server/routers/event";
 
 import type { AvailabilityState } from "../hooks/useAvailability";
@@ -13,6 +19,8 @@ type Props = {
   days: string[];
   slotsPerDay: number;
   availability: AvailabilityState;
+  /** Real aggregate; the grid colors itself with it when anyone answered. */
+  heatmap: Heatmap;
 };
 
 /** The grid itself, the slot card and the save row. */
@@ -21,9 +29,15 @@ export function AvailabilityPanel({
   days,
   slotsPerDay,
   availability,
+  heatmap,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<Cell | null>(null);
   const disabled = availability.isSaving || !availability.isDirty;
+
+  // React Compiler memoizes this; no useMemo by convention in this project.
+  const summary = selectedSlot
+    ? slotAt(slotIndex(heatmap), selectedSlot)
+    : null;
 
   return (
     <>
@@ -35,6 +49,7 @@ export function AvailabilityPanel({
         busy={availability.busy}
         onChange={availability.setBusy}
         onSelectSlot={setSelectedSlot}
+        heatmap={heatmap}
       />
 
       {selectedSlot ? (
@@ -42,8 +57,8 @@ export function AvailabilityPanel({
           title={`${formatDayHeader(selectedSlot.date)} · ${formatMinutes(
             event.workStartMinutes + selectedSlot.slot * event.stepMinutes,
           )}`}
-          free={[]}
-          busy={[]}
+          free={summary?.free ?? []}
+          busy={summary?.busy ?? []}
           onClose={() => setSelectedSlot(null)}
         />
       ) : null}

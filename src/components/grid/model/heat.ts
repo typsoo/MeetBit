@@ -1,3 +1,7 @@
+import type { Heatmap, SlotSummary } from "@/server/aggregate";
+
+import type { Cell } from "./types";
+
 /**
  * Ramp steps from palette.html: 0 is everyone busy, 4 is everyone free.
  * Kept next to the input grid so ticket 11 can switch it on without moving
@@ -15,4 +19,22 @@ export function levelForShare(share: number): HeatLevel {
   if (share <= 2 / 3) return 2;
   if (share < 1) return 3;
   return 4;
+}
+
+/** "date:slotNumber" → summary, so each cell looks its own row up in O(1). */
+export type SlotIndex = Map<string, SlotSummary>;
+
+export function slotIndex(heatmap: Heatmap): SlotIndex {
+  const index = new Map<string, SlotSummary>();
+  for (const slot of heatmap.slots) {
+    index.set(`${slot.date}:${slot.slotNumber}`, slot);
+  }
+  return index;
+}
+
+export function slotAt(
+  index: SlotIndex,
+  cell: Cell,
+): SlotSummary | null {
+  return index.get(`${cell.date}:${cell.slot}`) ?? null;
 }
